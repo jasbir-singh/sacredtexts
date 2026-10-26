@@ -421,7 +421,8 @@ CARD_PROSE = {
         "a model knows a faith."
     ),
     "census_count_template": "This run asked **{questions} questions** across **{texts} texts**.",
-    "language_names": {"en": "English", "ar": "Arabic", "he": "Hebrew", "grc": "Greek", "la": "Latin"},
+    "language_names": {"en": "English", "ar": "Arabic", "he": "Hebrew", "grc": "Greek", "la": "Latin",
+                       "pa": "Punjabi"},
     "tradition_table_heading": "By tradition",
     "tradition_table_note": (
         "A text shared by more than one tradition is counted under each, so these can total more than "

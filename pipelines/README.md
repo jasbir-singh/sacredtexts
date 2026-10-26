@@ -34,7 +34,8 @@ loading is fail-fast.
   translations — Talmud English, the Vatican English encyclicals — are excluded and recorded in
   the manifest with a reason. **Exception (working-group policy, issue #27 Q1):** the English
   Bibles (KJV/ASV/WEB) are translations but carry `canonical_language: en` so they stay in the
-  pool; the Qur'an (`ar`), Talmud Aramaic (`he`) and TLG Greek (`grc`) are genuine originals.
+  pool; the Qur'an (`ar`), Talmud Aramaic (`he`), TLG Greek (`grc`) and the Sri Guru Granth Sahib
+  (`pa`, Gurmukhi; Spec 37) are genuine originals.
 - `convert` and `generate` **exclude `restricted` targets by default**; pass
   `--include-restricted` to opt in (and supply the local payload). `validate` is
   unaffected by license.

@@ -492,3 +492,24 @@ def test_corpus_hash_changes_with_content():
     assert corpus_hash(a) == corpus_hash(b)
     b[0].entries[0] = Entry("verse", b[0].entries[0].citation, "different text here now")
     assert corpus_hash(a) != corpus_hash(b)
+
+
+def test_real_guru_granth_sahib_pools_fill_every_template():
+    """Spec 37: the Granth's eligible pools, through generate's own selection. Full ``generate``
+    over the corpus takes ~40 min, so this pins the pools instead: 1,452 panktis >= 12 words
+    (every template), 100 >= 16 (complete_unit) — both well above the per-template quota of 7.
+    Dandas are not entry words, so they cannot inflate either count."""
+    from pathlib import Path
+
+    from sacredbench import catalogue as cat
+    from sacredbench.convert import convert_target
+    from sacredbench.generate import MIN_WORDS_COMPLETABLE, _build_texts
+
+    raw = Path(__file__).resolve().parents[2] / "texts" / "raw"
+    sources = cat.discover_catalogue(raw)
+    [t] = [t for t in cat.all_targets(sources) if t.source_id == "Sikhism"]
+    docs = convert_target(t.payload_paths(raw), t)
+    [text], excluded = _build_texts(docs, cat.text_metadata(sources))
+    assert not excluded and text.language == "pa"
+    assert len(text.entries) == 1452
+    assert sum(len(e.text.split()) >= MIN_WORDS_COMPLETABLE for e in text.entries) == 100

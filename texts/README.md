@@ -37,6 +37,11 @@ committed benchmark artifacts must never embed their text. Each restricted
 source still carries a committed `source.yaml` (with its payload held back) so
 the catalogue stays complete and auditable.
 
+`raw/Sikhism/sggs_shabados.json` is a verbatim, filtered extract of the Shabad OS
+database (the Sri Guru Granth Sahib's lines only — the full database is 603 MB of
+TOML). `raw/Sikhism/build_extract.py` rebuilds it byte for byte from a checkout of
+`shabados/shabados` at the commit recorded in the file's `upstream` header.
+
 Per-source provenance metadata lives in each `texts/raw/<tradition>/source.yaml`
 (a targets manifest — provenance, converter, and a `license` field per target;
 see `pipelines/sacredbench/catalogue.py`).

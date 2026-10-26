@@ -1,0 +1,34 @@
+# Source catalogue for the Sikh corpus.
+# Sri Guru Granth Sahib Ji, Gurmukhi, from the Shabad OS database (primary text asset SSA2:
+# Shabadaarth, SGPC, 2009-2012). The payload is a verbatim, filtered extract of the
+# Shabad OS monorepo (one TOML file per line, 603 MB, many works) built by
+# build_extract.py beside this file. Converter: shabados_sggs (Spec 37) — it strips the
+# Shabad OS vishraam marks and verse counters, never a word.
+source_url: https://github.com/shabados/shabados
+provenance:
+  retrieved_from: github.com/shabados/shabados@7e36a29c96457f62566e26309879314d299f45c5 (database/collections)
+  fetch_method: sparse git checkout; filtered extract of SSA2 primary lines by build_extract.py
+  fetch_date: "2026-10-26"
+notes: >-
+  Citation is "Ang N:k" — k is the pankti's position on Ang N in reading order.
+  Shabad OS's own "line" field is the physical printed line and is not unique, so it
+  is not used. Two upstream Ang values are wrong and are corrected in the converter,
+  checked against BaniDB (see convert_shabados_sggs). The Granth's language is mixed
+  (Sant Bhasha); "pa" records its Gurmukhi Punjabi identity.
+targets:
+  - payload: sggs_shabados.json
+    converter: shabados_sggs
+    work: Sri Guru Granth Sahib
+    version: Shabad OS (SGPC Shabadaarth)
+    language: pa
+    document_type: scripture
+    tradition: [Sikhism]
+    license: public-domain
+    license_detail: >-
+      Shabad OS: "most gurbani and panthic texts are free of known copyright
+      restrictions. We identify it as being in the public domain" (CC PDM 1.0);
+      "Derogatory treatments (including adding to, deleting from, altering of, or
+      adapting) the words ... is forbidden." Code MIT. The statement's scope note still
+      names the pre-monorepo "data" folder.
+    requested_as: ["the Guru Granth Sahib", "Sri Guru Granth Sahib", "the Adi Granth", "Sri Guru Granth Sahib Ji"]
+    canonical_language: pa

@@ -23,6 +23,8 @@ Phase 3):
   its own document (work = title, version = Vatican edition).
 - ``nabre`` (restricted): NABRE book files ``{book, chapters: [...]}`` merge into
   one scripture document.
+- ``shabados_sggs`` (Spec 37): the Sri Guru Granth Sahib extract from Shabad OS →
+  one document of panktis cited ``Ang N:k``, Shabad OS apparatus removed.
 
 Converters are fail-fast: an unexpected shape raises ``ConvertError`` naming the
 file. Adding a source format = one function + one ``CONVERTERS`` registry line.
@@ -408,6 +410,78 @@ def convert_sefaria_talmud(paths: list[Path], target: "Target") -> list[Document
     return [_doc(target, entries)]
 
 
+# --- Sri Guru Granth Sahib (shabados_sggs) ------------------------------------
+
+# Shabad OS apparatus — editorial markup that is not in the printed Granth. Removing it
+# never adds, deletes, or changes a word (the Shabad OS licence forbids that).
+_SGGS_VISHRAAM_RE = re.compile(r"[;.,]")  # pause marks from a reading pothi
+_SGGS_SUBSCRIPT_RE = re.compile(r"[₀-₉]")  # Shabad OS disambiguation tags in raag headings
+_SGGS_COUNTER_RE = re.compile(r"(?<=॥)[੦-੯]+(?=॥)")  # verse counters: ॥੧॥, ॥੪॥੯॥੬੦॥
+# bindi + ZWJ + sihari-ii is a font workaround; standard Unicode order is ii + bindi
+_SGGS_BINDI_II = ("ਂ‍ੀ", "ੀਂ")
+
+# Upstream Ang values that are wrong, keyed by Shabad OS line id: (upstream, correct).
+# Both lines break reading order upstream, and BaniDB (api.banidb.com/v2/angs) places
+# them on the corrected Ang. A stale erratum (upstream fixed) fails loudly.
+_SGGS_ANG_ERRATA = {
+    "JJSV": (1337, 1336),  # ਹਰਿ ਹਰਿ ਆਪੁ ਧਰਿਓ ... ਇਕਫਾ ॥੪॥੫॥ — closes the shabad on 1336:19
+    "V41B": (1377, 1378),  # ਬੰਨੑਿ ਉਠਾਈ ਪੋਟਲੀ ... ॥੨॥ — 1378:1
+}
+
+
+def clean_sggs_line(data: str) -> str:
+    """One Shabad OS primary line -> the pankti's words: vishraam, subscript tags,
+    variation selectors and verse counters removed, the bindi/ZWJ order fixed. Dandas are
+    dropped too: they are punctuation (``normalize`` folds them to a space), and as
+    space-delimited tokens they would count as words against generate's word thresholds.
+    ``ਰਹਾਉ`` and the digits of headings (``ਮਹਲਾ ੫``) are words and stay."""
+    t = data.replace(*_SGGS_BINDI_II).replace("︀", "")
+    t = _SGGS_SUBSCRIPT_RE.sub("", _SGGS_VISHRAAM_RE.sub("", t))
+    t = _SGGS_COUNTER_RE.sub("", t).replace("॥", " ").replace("।", " ")
+    return " ".join(t.split())
+
+
+def convert_shabados_sggs(paths: list[Path], target: "Target") -> list[Document]:
+    """``sggs_shabados.json`` (``{upstream, sections, lines[{id, ang, line, data}]}``, lines in
+    reading order — see ``texts/raw/Sikhism/build_extract.py``) → one document.
+
+    The unit is the pankti; its citation is ``Ang N:k``, k = its 1-based position on Ang N in
+    reading order. Shabad OS's ``line`` is the PHYSICAL printed line and repeats (several
+    panktis share one), so it is not used. Fail-fast: an Ang that decreases along the
+    reading order, a stale erratum, or a ZWJ / variation selector the cleaning missed."""
+    if len(paths) != 1:
+        raise ConvertError(f"shabados_sggs expects one payload file, got {len(paths)}")
+    path = paths[0]
+    data = _load_json(path)
+    lines = data.get("lines") if isinstance(data, dict) else None
+    if not isinstance(lines, list):
+        raise ConvertError(f"{path}: expected an object with a 'lines' list (shabados_sggs)")
+    entries: list[Entry] = []
+    prev_ang, k = 0, 0
+    for i, rec in enumerate(lines):
+        if not isinstance(rec, dict) or not isinstance(rec.get("ang"), int) or not isinstance(rec.get("data"), str):
+            raise ConvertError(f"{path}: lines[{i}] missing or malformed 'ang'/'data'")
+        ang = rec["ang"]
+        if rec.get("id") in _SGGS_ANG_ERRATA:
+            upstream, correct = _SGGS_ANG_ERRATA[rec["id"]]
+            if ang != upstream:
+                raise ConvertError(f"{path}: erratum for line {rec['id']} is stale (upstream Ang is now {ang})")
+            ang = correct
+        if ang < prev_ang:
+            raise ConvertError(f"{path}: lines[{i}] ({rec.get('id')}) Ang {ang} after Ang {prev_ang}")
+        k = k + 1 if ang == prev_ang else 1
+        prev_ang = ang
+        text = clean_sggs_line(rec["data"])
+        if "‍" in text or "︀" in text:
+            raise ConvertError(f"{path}: lines[{i}] ({rec.get('id')}) keeps an unhandled joiner/selector")
+        if text:
+            entries.append(Entry(unit_type="pankti", citation=f"Ang {ang}:{k}", text=text))
+    if not entries:
+        raise ConvertError(f"{path}: produced no panktis")
+    _require_unique_citations(entries, str(path))
+    return [_doc(target, entries)]
+
+
 CONVERTERS = {
     "bible_flat": convert_bible_flat,
     "lds_nested": convert_lds_nested,
@@ -416,6 +490,7 @@ CONVERTERS = {
     "quran_qul": convert_quran_qul,
     "hadith_sunnah": convert_hadith_sunnah,
     "sefaria_talmud": convert_sefaria_talmud,
+    "shabados_sggs": convert_shabados_sggs,
 }
 
 

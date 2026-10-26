@@ -13,6 +13,7 @@ from sacredbench.convert import (
     convert_nabre,
     convert_quran_qul,
     convert_sefaria_talmud,
+    convert_shabados_sggs,
     convert_target,
 )
 from sacredbench.schema import SchemaError, load_document, parse_document, write_document
@@ -414,3 +415,83 @@ def test_phase3_converters_fail_fast(tmp_path, fn, payload, converter):
     with pytest.raises(ConvertError) as e:
         fn([p], _target(converter=converter))
     assert "bad.json" in str(e.value)
+
+
+# --- Sri Guru Granth Sahib (shabados_sggs, Spec 37) -----------------------------
+
+
+def _sggs_payload(tmp_path: Path, lines: list[dict]) -> Path:
+    p = tmp_path / "sggs.json"
+    p.write_text(json.dumps({"upstream": {}, "sections": [], "lines": lines}, ensure_ascii=False), encoding="utf-8")
+    return p
+
+
+def _sggs(id, ang, line, data):
+    return {"id": id, "section": "S", "line_group": "G", "ang": ang, "line": line, "data": data}
+
+
+def test_shabados_sggs_cites_ang_and_position_not_physical_line(tmp_path):
+    p = _sggs_payload(tmp_path, [
+        _sggs("A", 1, 4, "ਆਦਿ ਸਚੁ; ਜੁਗਾਦਿ ਸਚੁ ॥"),
+        _sggs("B", 1, 4, "ਹੈ ਭੀ ਸਚੁ; ਨਾਨਕ. ਹੋਸੀ ਭੀ ਸਚੁ ॥੧॥"),  # same physical line
+        _sggs("C", 2, 1, "ਸੋਚੈ. ਸੋਚਿ ਨ ਹੋਵਈ; ਜੇ ਸੋਚੀ ਲਖ ਵਾਰ ॥"),
+    ])
+    [doc] = convert_shabados_sggs([p], _target(converter="shabados_sggs", language="pa"))
+    assert [(e.unit_type, e.citation, e.text) for e in doc.entries] == [
+        ("pankti", "Ang 1:1", "ਆਦਿ ਸਚੁ ਜੁਗਾਦਿ ਸਚੁ"),
+        ("pankti", "Ang 1:2", "ਹੈ ਭੀ ਸਚੁ ਨਾਨਕ ਹੋਸੀ ਭੀ ਸਚੁ"),
+        ("pankti", "Ang 2:1", "ਸੋਚੈ ਸੋਚਿ ਨ ਹੋਵਈ ਜੇ ਸੋਚੀ ਲਖ ਵਾਰ"),
+    ]
+
+
+@pytest.mark.parametrize("raw,clean", [
+    ("ਸਗਲਂ‍ੀ ਸਉਦਂ‍ੀ; ਤੋਟਾ ਆਵੈ ॥", "ਸਗਲੀਂ ਸਉਦੀਂ ਤੋਟਾ ਆਵੈ"),  # bindi/ZWJ order
+    ("ਜੇ ਭੁਲੀ ਜੇ ਚੁਕੀ ਸਾਈਂ︀; ਭੀ ਤਹਿੰਜੀ ਕਾਢੀਆ ॥", "ਜੇ ਭੁਲੀ ਜੇ ਚੁਕੀ ਸਾਈਂ ਭੀ ਤਹਿੰਜੀ ਕਾਢੀਆ"),  # U+FE00
+    ("ਰਾਗੁ ਗਉੜੀ₁ ਪੂਰਬੀ ਮਹਲਾ ੫ ॥", "ਰਾਗੁ ਗਉੜੀ ਪੂਰਬੀ ਮਹਲਾ ੫"),  # subscript tag; heading digit kept
+    ("ਤੁਮੑਰੀ ਕ੍ਰਿਪਾ ਤੇ; ਤ੍ਰਿਪਤਿ ਅਘਾਈਂ︀ ॥੧॥ ਰਹਾਉ ॥", "ਤੁਮੑਰੀ ਕ੍ਰਿਪਾ ਤੇ ਤ੍ਰਿਪਤਿ ਅਘਾਈਂ ਰਹਾਉ"),  # ਰਹਾਉ kept
+    ("ਗਤਿ ਹੋਵੈ; ਸੰਤਹ ਲਗਿ ਪਾਈਂ︀ ॥੪॥੯॥੬੦॥", "ਗਤਿ ਹੋਵੈ ਸੰਤਹ ਲਗਿ ਪਾਈਂ"),  # counter chain
+    ("॥ ਜਪੁ ॥", "ਜਪੁ"),
+])
+def test_shabados_sggs_removes_apparatus_only(tmp_path, raw, clean):
+    [doc] = convert_shabados_sggs([_sggs_payload(tmp_path, [_sggs("A", 1, 1, raw)])], _target(converter="shabados_sggs"))
+    assert doc.entries[0].text == clean
+
+
+def test_shabados_sggs_fails_on_a_decreasing_ang(tmp_path):
+    p = _sggs_payload(tmp_path, [_sggs("A", 2, 1, "ਸਚੁ ॥"), _sggs("B", 1, 1, "ਸਚੁ ॥")])
+    with pytest.raises(ConvertError, match="Ang 1 after Ang 2"):
+        convert_shabados_sggs([p], _target(converter="shabados_sggs"))
+
+
+def test_shabados_sggs_fails_on_a_stale_erratum(tmp_path):
+    p = _sggs_payload(tmp_path, [_sggs("JJSV", 1336, 19, "ਸਚੁ ॥")])  # upstream already fixed
+    with pytest.raises(ConvertError, match="stale"):
+        convert_shabados_sggs([p], _target(converter="shabados_sggs"))
+
+
+def _gurmukhi_letters(s: str) -> str:
+    """Letters and marks only — the words' substance, independent of the converter."""
+    import unicodedata
+    return "".join(c for c in s if "਀" <= c <= "੿" and unicodedata.category(c)[0] in "LM")
+
+
+def test_real_sggs_converts_every_line_and_removes_only_apparatus():
+    """The whole Granth: 60,555 panktis on Angs 1-1430, unique citations, the two Ang errata
+    applied, and for EVERY line the Gurmukhi letters/marks and the word count are unchanged
+    (the only reordering is the declared bindi/ZWJ fix) — no word added, deleted, or altered."""
+    import re
+
+    t = _real_target("Sikhism")
+    [doc] = convert_target(t.payload_paths(RAW), t)
+    raw = json.loads(t.payload_paths(RAW)[0].read_text("utf-8"))["lines"]
+    assert len(doc.entries) == len(raw) == 60555
+    assert {e.citation.split(":")[0] for e in doc.entries} == {f"Ang {n}" for n in range(1, 1431)}
+    by_citation = {e.citation: e.text for e in doc.entries}
+    assert by_citation["Ang 1336:31"].startswith("ਹਰਿ ਹਰਿ ਆਪੁ ਧਰਿਓ")
+    assert by_citation["Ang 1378:1"].startswith("ਬੰਨੑਿ ਉਠਾਈ ਪੋਟਲੀ")
+    for r, e in zip(raw, doc.entries):
+        fixed = r["data"].replace("ਂ‍ੀ", "ੀਂ")
+        assert _gurmukhi_letters(fixed) == _gurmukhi_letters(e.text), r["id"]
+        words = [w for w in fixed.split() if _gurmukhi_letters(w)]
+        assert len(words) == len([w for w in e.text.split() if _gurmukhi_letters(w)]), r["id"]
+        assert not re.search(r"[;.,॥।₀-₉‍︀]", e.text), r["id"]

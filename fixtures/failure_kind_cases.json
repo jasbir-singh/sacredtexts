@@ -322,6 +322,62 @@
       "n_candidates": null,
       "expected_kind": "other_script",
       "expected_severity": "major"
+    },
+    {
+      "name": "transliterated answer to a gurmukhi reference is other_script",
+      "task": "retrieve_quote",
+      "correct": false,
+      "refused": false,
+      "answer": "ik oankar sat naam karta purakh nirbhau nirvair",
+      "expected": "ੴ ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ਨਿਰਭਉ ਨਿਰਵੈਰੁ",
+      "token_f1": 0,
+      "normalized": 0,
+      "contains_reference": 0,
+      "n_candidates": null,
+      "expected_kind": "other_script",
+      "expected_severity": "major"
+    },
+    {
+      "name": "english answer to a devanagari reference is other_script",
+      "task": "retrieve_quote",
+      "correct": false,
+      "refused": false,
+      "answer": "On the field of dharma, at Kurukshetra",
+      "expected": "धर्मक्षेत्रे कुरुक्षेत्रे समवेता युयुत्सवः",
+      "token_f1": 0,
+      "normalized": 0,
+      "contains_reference": 0,
+      "n_candidates": null,
+      "expected_kind": "other_script",
+      "expected_severity": "major"
+    },
+    {
+      "name": "gurmukhi vowel signs stay in the word, so four extra words are not an addition",
+      "task": "retrieve_quote",
+      "correct": true,
+      "refused": false,
+      "answer": "ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ਨਿਰਭਉ ਨਿਰਵੈਰੁ ਅਕਾਲ ਮੂਰਤਿ",
+      "expected": "ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ",
+      "token_f1": 0.67,
+      "normalized": 0,
+      "contains_reference": 1,
+      "n_candidates": null,
+      "expected_kind": null,
+      "expected_severity": null
+    },
+    {
+      "name": "devanagari vowel signs stay in the word, so four extra words are not an addition",
+      "task": "complete_unit",
+      "correct": true,
+      "refused": false,
+      "answer": "धर्मक्षेत्रे कुरुक्षेत्रे समवेता युयुत्सवः मामकाः पाण्डवाश्चैव किमकुर्वत सञ्जय",
+      "expected": "धर्मक्षेत्रे कुरुक्षेत्रे समवेता युयुत्सवः",
+      "token_f1": 0.67,
+      "normalized": 0,
+      "contains_reference": 1,
+      "n_candidates": null,
+      "expected_kind": null,
+      "expected_severity": null
     }
   ]
 }

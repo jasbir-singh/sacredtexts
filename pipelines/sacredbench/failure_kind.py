@@ -25,6 +25,8 @@ import re
 from collections import Counter
 from pathlib import Path
 
+from .score import INDIC_MARKS
+
 PARAPHRASE_F1 = 0.4
 # At or above this overlap the answer is a near copy the scorer failed to fold, not a rewrite.
 NEAR_COPY_F1 = 0.85
@@ -34,7 +36,9 @@ ADDITION_EXTRA_TOKENS = 8
 # letter or number, so it folds too — this matches the viewer's `/[^\p{L}\p{N}\s]/u` exactly
 # (Python's `\w` would keep `_`, so a Markdown `_quoted_` would tokenise differently; see the
 # shared parity fixture). Keep the two normalizers byte-for-byte aligned.
-_PUNCT_RE = re.compile(r"[^\w\s]|_", re.UNICODE)
+# Devanagari/Gurmukhi vowel signs (Mn/Mc) are part of the word, so they are exempt — the
+# same marks the scorer keeps (``score.INDIC_MARKS``); the viewer adds `\p{M}` for those blocks.
+_PUNCT_RE = re.compile(r"[^\w\s" + re.escape(INDIC_MARKS) + r"]|_", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
 
 # A minor kind stays on the passage that was asked for. A major kind replaces it:
@@ -83,10 +87,14 @@ def tokens(text: str) -> list[str]:
 
 
 def _script(text: str) -> str | None:
-    hebrew = arabic = greek = latin = 0
+    hebrew = arabic = greek = latin = devanagari = gurmukhi = 0
     for ch in text:
         o = ord(ch)
-        if 0x0590 <= o <= 0x05FF:
+        if 0x0900 <= o <= 0x097F:
+            devanagari += 1
+        elif 0x0A00 <= o <= 0x0A7F:
+            gurmukhi += 1
+        elif 0x0590 <= o <= 0x05FF:
             hebrew += 1
         elif (
             0x0600 <= o <= 0x06FF
@@ -102,7 +110,7 @@ def _script(text: str) -> str | None:
             greek += 1
         elif ("A" <= ch <= "Z") or ("a" <= ch <= "z"):
             latin += 1
-    best = max(hebrew, arabic, greek, latin)
+    best = max(hebrew, arabic, greek, latin, devanagari, gurmukhi)
     if best < 4:
         return None
     if hebrew == best:
@@ -111,6 +119,10 @@ def _script(text: str) -> str | None:
         return "arabic"
     if greek == best:
         return "greek"
+    if devanagari == best:
+        return "devanagari"
+    if gurmukhi == best:
+        return "gurmukhi"
     return "latin"
 
 

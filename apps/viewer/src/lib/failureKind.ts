@@ -87,10 +87,17 @@ export interface FailureInput {
   nCandidates: number | null;
 }
 
+/** Devanagari or Gurmukhi block. */
+function isIndic(c: number): boolean {
+  return (c >= 0x0900 && c <= 0x097f) || (c >= 0x0a00 && c <= 0x0a7f);
+}
+
+// Devanagari/Gurmukhi vowel signs (\p{M}) are part of the word, so they are kept, as in
+// pipelines/sacredbench/failure_kind.py. Every other non-letter/number folds to a space.
 function normalize(s: string): string {
   return s
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/[^\p{L}\p{N}\s]/gu, (ch) => (isIndic(ch.codePointAt(0)!) && /\p{M}/u.test(ch) ? ch : " "))
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -100,16 +107,20 @@ function tokenList(s: string): string[] {
   return n ? n.split(" ") : [];
 }
 
-type Script = "hebrew" | "arabic" | "greek" | "latin";
+type Script = "hebrew" | "arabic" | "greek" | "latin" | "devanagari" | "gurmukhi";
 
 function primaryScript(s: string): Script | null {
   let hebrew = 0;
   let arabic = 0;
   let greek = 0;
   let latin = 0;
+  let devanagari = 0;
+  let gurmukhi = 0;
   for (const ch of s) {
     const c = ch.codePointAt(0)!;
-    if (c >= 0x0590 && c <= 0x05ff) hebrew++;
+    if (c >= 0x0900 && c <= 0x097f) devanagari++;
+    else if (c >= 0x0a00 && c <= 0x0a7f) gurmukhi++;
+    else if (c >= 0x0590 && c <= 0x05ff) hebrew++;
     else if (
       (c >= 0x0600 && c <= 0x06ff) ||
       (c >= 0x0750 && c <= 0x077f) ||
@@ -123,11 +134,13 @@ function primaryScript(s: string): Script | null {
     else if ((c >= 0x0370 && c <= 0x03ff) || (c >= 0x1f00 && c <= 0x1fff)) greek++;
     else if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) latin++;
   }
-  const best = Math.max(hebrew, arabic, greek, latin);
+  const best = Math.max(hebrew, arabic, greek, latin, devanagari, gurmukhi);
   if (best < 4) return null;
   if (hebrew === best) return "hebrew";
   if (arabic === best) return "arabic";
   if (greek === best) return "greek";
+  if (devanagari === best) return "devanagari";
+  if (gurmukhi === best) return "gurmukhi";
   return "latin";
 }
 

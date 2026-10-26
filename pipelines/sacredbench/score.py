@@ -7,8 +7,9 @@ Metrics emitted per answer:
 - ``normalized``  equality after normalisation: unicode quotes/dashes folded,
                   Arabic/Hebrew combining marks + annotation symbols removed and
                   alef/maqaf variants folded (so vocalised ↔ unvocalised scripture
-                  matches), case-folded, punctuation stripped, whitespace collapsed
-                  (0/1) — see ``strip_script_marks``
+                  matches), Devanagari/Gurmukhi vowel signs KEPT in the word and their
+                  digits folded to ASCII, case-folded, punctuation stripped, whitespace
+                  collapsed (0/1) — see ``strip_script_marks`` and ``fold_indic``
 - ``token_f1``    bag-of-words F1 between normalised answer and expected text
                   (0..1) — the v1 "semantic similarity" stand-in; embedding- or
                   judge-based semantic scoring is a later, pluggable metric
@@ -67,8 +68,33 @@ class ScoreError(Exception):
     pass
 
 
-_PUNCT_RE = re.compile(r"[^\w\s]", re.UNICODE)
 _WS_RE = re.compile(r"\s+")
+
+# The Indic blocks: Devanagari (Sanskrit) and Gurmukhi. Their vowel signs, viramas and
+# nasal marks (categories Mn/Mc) are SPELLING, not optional pointing: ਨਾਮ and ਨਮ are
+# different words. So unlike the Arabic/Hebrew marks they are KEPT — exempted from the
+# punctuation pass, which would otherwise turn every one into a word split (Python's `\w`
+# rejects Mn/Mc). Danda/double danda (Po) stay separators. Scoped to these blocks, so
+# Latin/Arabic/Hebrew output is byte-for-byte unchanged.
+_INDIC_BLOCKS = ((0x0900, 0x097F), (0x0A00, 0x0A7F))
+INDIC_MARKS = "".join(
+    chr(c)
+    for lo, hi in _INDIC_BLOCKS
+    for c in range(lo, hi + 1)
+    if unicodedata.category(chr(c)).startswith("M")
+)
+_PUNCT_RE = re.compile(r"[^\w\s" + re.escape(INDIC_MARKS) + "]", re.UNICODE)
+# Word edges for the bounded matches: an Indic mark is inside a word, so ਕਰਤ is not a word
+# within ਕਰਤਾ. Identical to `(?<!\w)`/`(?!\w)` outside the Indic blocks.
+_EDGE_L = r"(?<![\w" + re.escape(INDIC_MARKS) + "])"
+_EDGE_R = r"(?![\w" + re.escape(INDIC_MARKS) + "])"
+# Native digits fold to ASCII, so a Gurmukhi/Devanagari numeral matches its Latin twin.
+_INDIC_DIGITS = str.maketrans(
+    {**{0x0966 + i: str(i) for i in range(10)}, **{0x0A66 + i: str(i) for i in range(10)}}
+)
+# ZWJ/ZWNJ after an Indic character only steers conjunct rendering; delete it there so it
+# does not split the word. Elsewhere it is left alone (see the bidi note below).
+_INDIC_JOINER_RE = re.compile(r"(?<=[ऀ-ॿ਀-੿])[‌‍]")
 
 # The RTL Unicode blocks (U+0590–U+08FF is Hebrew + Arabic + their extensions — and also
 # Syriac/Thaana/N'Ko/Samaritan/Mandaic, whose marks we strip too; harmless for this
@@ -118,6 +144,13 @@ def strip_script_marks(text: str) -> str:
         )
     )
 
+
+def fold_indic(text: str) -> str:
+    """Fold Devanagari/Gurmukhi digits to ASCII and drop a joiner that follows an Indic
+    character. The Indic vowel signs themselves are kept (see ``INDIC_MARKS``). A no-op
+    on text with no Indic characters."""
+    return _INDIC_JOINER_RE.sub("", text.translate(_INDIC_DIGITS))
+
 # Fixed sub-metrics for the NON-graded tasks. The text-retrieval tasks (retrieve_quote /
 # complete_unit) derive their submetric set from the selected graders (see graders.submetrics_for);
 # verify_source and cite_passage carry no fixed submetrics. (identify_version / identify_source were
@@ -132,6 +165,7 @@ def normalize(text: str) -> str:
     text = text.replace("–", "-").replace("—", "-")
     text = strip_script_marks(text)  # Arabic/Hebrew marks BEFORE the punctuation pass,
     #                                  so they are removed, not turned into word splits
+    text = fold_indic(text)  # Indic digits + joiners; Indic marks survive _PUNCT_RE
     text = _PUNCT_RE.sub(" ", text.casefold())
     return _WS_RE.sub(" ", text).strip()
 
@@ -259,7 +293,7 @@ def bounded_contains(answer: str, expected: str) -> bool:
     the exact scoring-contract containment rule — ``normalize`` + this boundary match — rather
     than defining a second, divergent ``in`` check."""
     ne = normalize(expected)
-    return re.search(r"(?<!\w)" + re.escape(ne) + r"(?!\w)", normalize(answer)) is not None
+    return re.search(_EDGE_L + re.escape(ne) + _EDGE_R, normalize(answer)) is not None
 
 
 
@@ -272,7 +306,7 @@ def _single_citation_correct(answer: str, expected_citation: str) -> tuple[int, 
     not a hedge; only distinct OTHER citations are."""
     cands = _citation_candidates(answer, expected_citation)
     ne = normalize(expected_citation)
-    boundary = re.compile(r"(?<!\w)" + re.escape(ne) + r"(?!\w)")
+    boundary = re.compile(_EDGE_L + re.escape(ne) + _EDGE_R)
     matching = {c for c in cands if boundary.search(c)}
     others = cands - matching
     n = (1 if matching else 0) + len(others)

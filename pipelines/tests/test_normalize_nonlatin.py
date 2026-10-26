@@ -163,3 +163,66 @@ def test_latin_output_unchanged(text, expected):
 def test_strip_script_marks_is_a_noop_on_latin():
     for s in ["Hello, world!", "café", "coöperate", "John 3:16"]:
         assert strip_script_marks(unicodedata.normalize("NFKD", s)) == unicodedata.normalize("NFKD", s)
+
+
+# --- Devanagari / Gurmukhi (Spec 37) -------------------------------------------
+# Indic vowel signs are spelling, not optional pointing, so they are KEPT in the word — the
+# opposite of the Arabic/Hebrew rule above. Before Spec 37 every one became a word split:
+# "ਸਤਿ ਨਾਮੁ" -> "ਸਤ ਨ ਮ".
+
+MOOL_MANTAR = "ੴ ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ਨਿਰਭਉ ਨਿਰਵੈਰੁ ॥"
+GITA_1_1 = "धर्मक्षेत्रे कुरुक्षेत्रे समवेता युयुत्सवः । मामकाः पाण्डवाश्चैव किमकुर्वत सञ्जय ॥"
+
+
+@pytest.mark.parametrize("text", [MOOL_MANTAR, GITA_1_1])
+def test_indic_words_stay_whole(text):
+    words = [w for w in text.split() if w not in ("।", "॥")]
+    assert normalize(text).split() == words
+
+
+def test_indic_marks_are_kept_not_deleted():
+    # Deleting the marks (the Arabic rule) would merge distinct words: naam vs nam.
+    assert normalize("ਨਾਮ") != normalize("ਨਮ")
+    assert normalize("कर्म") != normalize("करम")
+
+
+@pytest.mark.parametrize("base,lo,hi", [("क", 0x0900, 0x097F), ("ਕ", 0x0A00, 0x0A7F)])
+def test_every_indic_mark_stays_inside_its_word(base, lo, hi):
+    marks = [chr(c) for c in range(lo, hi + 1) if unicodedata.category(chr(c)).startswith("M")]
+    assert marks
+    for m in marks:
+        assert len(normalize(base + m + base).split()) == 1, f"U+{ord(m):04X} split the word"
+
+
+def test_danda_is_a_word_separator():
+    assert normalize("ਸਤਿ॥ਨਾਮੁ") == "ਸਤਿ ਨਾਮੁ"
+    assert normalize("कर्म।धर्म") == "कर्म धर्म"
+
+
+def test_indic_digits_fold_to_ascii():
+    assert normalize("੧੨੩") == normalize("१२३") == "123"
+    assert normalize("Ang ੧੨:੩") == normalize("Ang 12:3")
+
+
+def test_joiner_after_indic_is_dropped_but_latin_joiner_unchanged():
+    assert normalize("र्‍क") == normalize("र्क")
+    assert normalize("a‍b") == "a b"  # pre-existing Latin behaviour
+
+
+def test_indic_containment_respects_word_boundaries():
+    # Before Spec 37 "ਕਰਤਾ" normalized to "ਕਰਤ", so the reference "ਕਰਤ" was "contained".
+    r = score_answer("retrieve_quote", "ਕਰਤਾ ਪੁਰਖੁ", {"text": "ਕਰਤ"})
+    assert r["contains_reference"] == 0
+
+
+def test_indic_recital_with_verse_counter_is_contained():
+    r = score_answer("retrieve_quote", "ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ ॥੧॥", {"text": "ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ"})
+    assert r["contains_reference"] == 1 and r["correct"] == 1
+    assert token_f1("ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ", "ਸਤਿ ਨਾਮੁ ਕਰਤਾ ਪੁਰਖੁ") == 1.0
+
+
+@pytest.mark.parametrize("text", [MOOL_MANTAR, GITA_1_1])
+def test_scorer_and_failure_kind_tokenize_indic_alike(text):
+    from sacredbench.failure_kind import tokens
+
+    assert normalize(text).split() == tokens(text)

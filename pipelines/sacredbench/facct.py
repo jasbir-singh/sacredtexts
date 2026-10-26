@@ -67,6 +67,17 @@ def _load_jsonl(path: Path) -> list[dict]:
     return rows
 
 
+def post_run_filter(targets, manifest: dict) -> list:
+    """The catalogue targets that existed when ``manifest``'s run was generated: every
+    restricted target (never in a manifest), plus each non-restricted target the manifest
+    lists as selected or excluded. A non-restricted target it does not list came later."""
+    known = {
+        (st.get("work"), st.get("version"), st.get("language"))
+        for st in (manifest.get("selected_texts") or []) + (manifest.get("excluded_texts") or [])
+    }
+    return [t for t in targets if t.license == "restricted" or t.text_key in known]
+
+
 def _census(manifest: dict, raw_root: Path) -> dict:
     selected = manifest.get("selected_texts") or []
     excluded = manifest.get("excluded_texts") or []
@@ -102,8 +113,11 @@ def _census(manifest: dict, raw_root: Path) -> dict:
     # Languages present in the catalogue — as a target's language OR a text's canonical language —
     # that contribute zero questions to the pool. The canonical-language union surfaces e.g. Latin
     # (the encyclicals' canonical language, carried by no target's `language`), not only Greek.
+    # Only the catalogue AS OF THIS RUN counts: generate records every non-restricted target as
+    # selected or excluded, so a non-restricted target missing from the manifest was added later
+    # (Spec 37's Guru Granth Sahib) and must not change a historic run's card.
     catalogue_languages = set()
-    for t in targets_by_key.values():
+    for t in post_run_filter(targets_by_key.values(), manifest):
         catalogue_languages.add(t.language)
         catalogue_languages.add(t.canonical_language)
     pool_languages = {st.get("language") for st in selected}

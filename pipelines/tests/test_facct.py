@@ -737,3 +737,22 @@ def test_real_run_census_and_counterfactual():
     assert "leading Yes / No" in md  # verify_source
     # containment is explicitly scoped to the two text-retrieval tasks, not asserted for all four
     assert "For the two text-retrieval tasks" in md
+
+
+def test_post_run_filter_drops_targets_added_after_the_run():
+    """A historic run's card must not change when a corpus is added later (Spec 37): a
+    non-restricted target its manifest does not list came after the run; restricted
+    targets are never listed and always count."""
+    from types import SimpleNamespace as T
+
+    from sacredbench.facct import post_run_filter
+
+    old = T(text_key=("W", "V", "en"), license="public-domain")
+    excluded = T(text_key=("E", "V", "en"), license="open")
+    restricted = T(text_key=("R", "V", "grc"), license="restricted")
+    later = T(text_key=("New", "V", "pa"), license="public-domain")
+    manifest = {
+        "selected_texts": [{"work": "W", "version": "V", "language": "en"}],
+        "excluded_texts": [{"work": "E", "version": "V", "language": "en", "reason": "x"}],
+    }
+    assert post_run_filter([old, excluded, restricted, later], manifest) == [old, excluded, restricted]

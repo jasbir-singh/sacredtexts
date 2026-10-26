@@ -357,8 +357,15 @@ def test_real_catalogue_export_corpus_hash_equals_run_manifest():
         pytest.skip("no raw tree / committed run")
     indexed, all_docs, excluded = load_edition_documents(raw)
     body = "".join(json.dumps(r, ensure_ascii=False) + "\n" for r in export_rows(indexed))
+    from sacredbench import catalogue as cat
     from sacredbench.edition_index import build_manifest
+    from sacredbench.facct import post_run_filter
 
+    # the run's corpus is the catalogue as of the run: drop texts added after it (Spec 37)
+    run = json.loads(run_manifest.read_text())
+    targets = cat.all_targets(cat.discover_catalogue(raw))
+    later = {t.text_key for t in targets} - {t.text_key for t in post_run_filter(targets, run)}
+    all_docs = [d for d in all_docs if (d.work, d.version, d.language) not in later]
     manifest = build_manifest(all_docs, body, excluded)
-    run_corpus_hash = json.loads(run_manifest.read_text())["corpus_hash"]
+    run_corpus_hash = run["corpus_hash"]
     assert manifest["corpus_hash"] == run_corpus_hash

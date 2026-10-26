@@ -77,7 +77,7 @@ Shabad OS facts, measured on the real data at commit `7e36a29` (2026-10-22):
   - **Variation selector** U+FE00 (28 cases).
   - **Subscript digits** in raag headings (`ਗਉੜੀ₂`; 37 subscript characters): Shabad OS's disambiguation tags.
 - Lines are short. After removing vishraams and numeric counters, the median is **6 words**.
-  1,631 lines have ≥12 words and 105 have ≥16. Twenty eligible line texts occur at more than one
+  1,452 lines have ≥12 words and 100 have ≥16 (dandas not counted as words). Twenty eligible line texts occur at more than one
   location (refrains, the Mool Mantar).
 
 ### Bhagavad Gita
@@ -140,7 +140,8 @@ The entry text is the scripture as printed, without upstream editorial apparatus
   - Reorder bindi + ZWJ + vowel to standard Unicode order, and remove the variation selector.
   - Remove subscript disambiguation digits.
   - Remove the numeric counters `॥੧॥`, `॥੪॥੯॥੬੦॥`. **Keep** `ਰਹਾਉ`, which is a word of the text.
-    Keep single dandas only where they separate words; they normalize to a space anyway.
+    Drop dandas too: they are punctuation, `normalize()` folds them to a space, and as
+    space-delimited tokens they would count as words against the shared 12/16-word thresholds.
 - **Bhagavad Gita:** remove the inline number marker and the speaker label, including glued labels.
   The speaker label is a heading, not part of the shloka.
 - **No word of the scripture is added, deleted, or altered.** This satisfies Shabad OS's
@@ -270,7 +271,7 @@ correct.
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Thin `complete_unit` pools (Gita 11 verses ≥16 words, Granth 105) bias toward the longest units | High | Medium | Pools exceed the quota of 7. Report pool sizes on the card. Revisit thresholds per language in a later spec. |
+| Thin `complete_unit` pools (Gita 11 verses ≥16 words, Granth 100) bias toward the longest units | High | Medium | Pools exceed the quota of 7. Report pool sizes on the card. Revisit thresholds per language in a later spec. |
 | Chapter 13 numbering differs from Gita Press | Medium | Medium | Record the recension in `license_detail`/notes. Note on the card that 13.x citations may be off by one. |
 | Shabad OS reorganises again | Medium | Low | Pin the commit SHA in provenance. Commit the extract. |
 | Mixed-language Granth makes `pa` a simplification | Low | Low | Note it on the card. |

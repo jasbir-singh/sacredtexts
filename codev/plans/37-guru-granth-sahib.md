@@ -17,7 +17,9 @@ phase is one atomic commit and ends green.
 phase that uses it):
 
 - Q1: citation `Ang N:k`. Accept the `cite_passage` ceiling and report it on the card.
-- Q3: keep raag/author headings as `heading` entries. They never reach the pool (under 12 words).
+- Q3: keep raag/author headings in the document. **Decided in Phase 3:** every line is a `pankti`;
+  no heading classifier. Headings never reach the pool (under 12 words), and a wrong guess on a
+  long line would make a prompt call scripture "that heading".
 - Q4: generate unchanged. Report the 20 repeated line texts on the card.
 - Q5: same-language negatives are out of scope. The cross-language fallback is flagged.
 
@@ -128,7 +130,7 @@ sort sections by their first line's `(ang, line)`. The order must satisfy this i
 
 #### Objective
 
-One `Document`: `unit_type` `pankti` (or `heading`), citation `Ang N:k`, and text that is the
+One `Document`: `unit_type` `pankti`, citation `Ang N:k`, and text that is the
 printed Granth without Shabad OS apparatus.
 
 #### Files to Create / Modify
@@ -140,8 +142,9 @@ printed Granth without Shabad OS apparatus.
   - Remove numeric counters `॥<Gurmukhi digits>॥`, including chains like `॥੪॥੯॥੬੦॥`. Keep `ਰਹਾਉ`.
   - Collapse whitespace.
   - `k` is the 1-based position within the Ang in canonical order.
-  - Classify a line as `heading` by an explicit, tested rule. Derive the rule from the data (the
-    raag/mahala lines, `॥ ਜਪੁ ॥`), and list every heading pattern in the docstring.
+  - Drop dandas (decided in Phase 3: as separate tokens they inflate generate's word counts).
+  - Correct two upstream Ang errors (`JJSV` 1337→1336, `V41B` 1377→1378), confirmed against
+    BaniDB. Reading order comes from the sections, so these were the only Ang decreases.
 - `pipelines/tests/test_schema_convert.py`: fixtures for two panktis on one physical line, a glued
   ZWJ vowel, a subscript heading, `॥੧॥ ਰਹਾਉ ॥`, the Mool Mantar, and a counter chain.
 - `pipelines/tests/test_catalogue.py`: the real-tree target count goes from 21 to 22.
@@ -151,7 +154,7 @@ printed Granth without Shabad OS apparatus.
 
 #### Acceptance Criteria
 
-- `convert` yields 60,555 entries (panktis plus headings). Citations are unique; Angs run 1–1430.
+- `convert` yields 60,555 panktis. Citations are unique; Angs run 1–1430.
 - The property test passes over all 60,555 lines.
 - No word is added, removed, or changed. The property test is the proof.
 
@@ -167,7 +170,7 @@ Indic rule.
 #### Files to Create / Modify
 
 - `pipelines/tests/test_generate.py`: the Granth fills every template quota deterministically
-  under a fixed seed. Expected pools: 1,631 entries ≥12 words, 105 ≥16. `verify_source` negatives
+  under a fixed seed. Expected pools: 1,452 entries ≥12 words, 100 ≥16. `verify_source` negatives
   fall back to cross-language, flagged.
 - Card (`facct.py`), only if its census needs a field: pool sizes and the 20 repeated texts. Skip
   if the existing census already shows them.
@@ -205,7 +208,6 @@ See the real path work: Gurmukhi prompt → model answer → score.
 | Risk | Mitigation |
 |---|---|
 | The Indic rule leaks outside its blocks and moves committed scores | Zero-move oracle in Phase 1; stop on any move. |
-| A heading rule misses a pattern and a heading enters the pool as scripture | Headings are under 12 words, so they cannot enter; the rule only affects `unit_type`. |
 | Shabad OS has no explicit section order | The invariant check; the fallback sort is documented in the script. |
 | Adding a text reshuffles other texts' questions, so pre/post runs are not comparable item by item | Expected. Compare runs per text, not per question. Per-text seeding is a later spec if the paper needs it. |
 | 9 MB extract bloats the repo | Comparable to existing payloads (Sunni Islam 46 MB, Judaism 67 MB). |

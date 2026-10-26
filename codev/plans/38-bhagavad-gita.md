@@ -87,8 +87,9 @@ Mukundananda). Confirm that, or pick a neutral name such as `701-verse recension
 - `pipelines/tests/test_generate.py`: the Gita fills 28 questions deterministically. Expected
   pools: 117 verses ≥12 words, 11 ≥16. That is thin for `complete_unit` (quota 7), so assert it
   explicitly.
-- Existing texts' questions, including the Guru Granth Sahib's, are byte-identical before and
-  after the addition.
+- Committed runs are untouched: no `runs/**` file changes. Other texts' questions change, because
+  "Bhagavad Gita" sorts first and the RNG is shared. That is expected; the new manifest records
+  the new pool. Generating twice with the same seed gives identical output.
 - `texts/README.md` and `pipelines/README.md` list the Hinduism source.
 - A fresh `runs/<id>/` smoke with one cheap model over the Gita's 28 questions. Hand-review every
   cell. Check in particular that `cite_passage` answers for chapter 13 that use Gita Press numbering

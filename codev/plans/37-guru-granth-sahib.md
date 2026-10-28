@@ -181,7 +181,7 @@ Indic rule.
 
 - `generate` over the default pool includes the Granth with 28 questions.
 - Committed runs are untouched: no `runs/**` file changes. Generation uses one RNG across texts in
-  sorted order, and fakes draw from the whole pool, so adding a text changes other texts'
+  sorted order, and negatives draw from the whole pool, so adding a text changes other texts'
   questions. That is expected. The new manifest records the new pool and digest.
 - The new question set is reproducible: generating twice with the same seed gives identical output.
 - The copyright audit passes.

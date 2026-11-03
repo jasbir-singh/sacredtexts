@@ -174,10 +174,10 @@ def test_sikh_retrieval_rows_ask_for_an_edge_pankti_of_the_ang():
     for the first or last pankti of the drawn passage's Ang, and expects exactly that pankti."""
     by_ang = _ang_lines()
     rows = _sikh_rows()
-    retrieve = [q for q in rows if q["task"] == "retrieve_quote"]
+    retrieve = [q for q in rows if q["task"] == "retrieve_quote" and q["source"]["sample"] == "population"]
     # Two edges per Ang: a population Ang that holds more drawn passages asks only two of them, and
     # Ang 315 asks none (a heading first, a record crossing into Ang 316 last).
-    assert len(retrieve) == 56
+    assert len(retrieve) == 50
     edges = {"first": 0, "last": 0}
     for q in retrieve:
         assert not re.search(r"\d+:\d+", q["prompt"]), q["id"]
@@ -198,8 +198,36 @@ def test_sikh_retrieval_rows_ask_for_an_edge_pankti_of_the_ang():
         asked = [q["prompt"] for q in file_rows if q["task"] == "retrieve_quote"]
         assert len(asked) == len(set(asked)), path
         cited = {q["expected"]["citation"] for q in file_rows if q["task"] == "cite_passage"}
+        if "familiarity" in path.parts:
+            continue  # asked by name: test_sikh_familiarity_rows_ask_for_the_famous_line_by_name
         retrieved = {q["source"]["citation"].partition(":")[0] for q in file_rows if q["task"] == "retrieve_quote"}
         assert retrieved <= cited and cited - retrieved <= {"Ang 315"}, path  # Ang 315: no askable edge
+
+
+NAMES = {
+    "Ang 1:1": ("the Mool Mantar", "ਮੂਲ ਮੰਤਰ"),
+    "Ang 8:33": ("the first line of the closing salok of Japji Sahib", "ਜਪੁਜੀ ਸਾਹਿਬ ਦੇ ਅੰਤਲੇ ਸਲੋਕ ਦੀ ਪਹਿਲੀ ਪੰਕਤੀ"),
+    "Ang 262:31": ("the rahao line of Sukhmani Sahib", "ਸੁਖਮਨੀ ਸਾਹਿਬ ਦੀ ਰਹਾਉ ਵਾਲੀ ਪੰਕਤੀ"),
+}
+
+
+def test_sikh_familiarity_rows_ask_for_the_famous_line_by_name():
+    """A famous line has a name, so its retrieve row asks by name and expects the line itself, the
+    passage its other three tasks quote. Edge panktis are for the population draw only."""
+    rows = [q for q in _sikh_rows() if q["source"]["sample"] == "familiarity"]
+    retrieve = [q for q in rows if q["task"] == "retrieve_quote"]
+    assert len(retrieve) == 6
+    for q in retrieve:
+        citation = q["source"]["citation"]
+        english, native = NAMES[citation]
+        assert (english if q["source"]["condition"] == "ask_english" else native) in q["prompt"], q["id"]
+        assert not re.search(r"\d+:\d+|Ang \d+", q["prompt"]), q["id"]
+        cite = next(
+            c for c in rows
+            if c["task"] == "cite_passage" and c["source"]["citation"] == citation
+            and c["source"]["condition"] == q["source"]["condition"]
+        )
+        assert f'"{q["expected"]["text"]}"' in cite["prompt"], q["id"]  # the line the cite row quotes
 
 
 def test_an_edge_heading_is_never_asked_for():

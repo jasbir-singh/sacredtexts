@@ -44,6 +44,7 @@
 - `Ang 8:33` (familiarity)
 - cite_passage asks for and expects the Ang only: line numbering within an Ang is not standardised (#135).
 - retrieve_quote asks for the first or last pankti of the passage's Ang, for the same reason.
+- A familiarity passage's retrieve_quote asks for it by name (`asked_as` in well_known.yaml), e.g. the Mool Mantar.
 
 These citations are the question file. Population and familiarity are separate samples.
 

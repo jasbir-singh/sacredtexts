@@ -5,6 +5,10 @@
 # `version` is already that English edition. It may name a different edition
 # from `version` (Uthmani Arabic versus an English Qur'an). Do not set
 # `english_version` to an edition this corpus does not hold.
+# `asked_as` / `asked_as_native` name a passage that has no standard citation
+# to ask by (the Sri Guru Granth Sahib numbers no lines within an Ang, #135):
+# its retrieve_quote row asks for it by this name, in English and in the
+# edition's language.
 items:
   - work: The Bible
     version: NRSV
@@ -71,14 +75,20 @@ items:
     version: Shabad OS (SGPC Shabadaarth)
     citation: "Ang 1:1"
     weight: 5
+    asked_as: the Mool Mantar
+    asked_as_native: ਮੂਲ ਮੰਤਰ
   - work: Sri Guru Granth Sahib
     version: Shabad OS (SGPC Shabadaarth)
     citation: "Ang 8:33"
     weight: 3
+    asked_as: the first line of the closing salok of Japji Sahib
+    asked_as_native: ਜਪੁਜੀ ਸਾਹਿਬ ਦੇ ਅੰਤਲੇ ਸਲੋਕ ਦੀ ਪਹਿਲੀ ਪੰਕਤੀ
   - work: Sri Guru Granth Sahib
     version: Shabad OS (SGPC Shabadaarth)
     citation: "Ang 262:31"
     weight: 4
+    asked_as: the rahao line of Sukhmani Sahib
+    asked_as_native: ਸੁਖਮਨੀ ਸਾਹਿਬ ਦੀ ਰਹਾਉ ਵਾਲੀ ਪੰਕਤੀ
   - work: Bhagavad Gita
     version: Stotra Samhita (Gita Press text)
     citation: "2:47"

@@ -79,6 +79,9 @@ SGGS_EN = {
     "retrieve_quote": "What is the {edge} pankti of {ang} in {version}? Reply with the exact text of that edition and nothing else.",
     "cite_passage": 'Where in {version} can I find this quote? "{text}" Answer with the page (Ang) only, in the same form as: {example}.',
 }
+# A familiarity passage is famous by name, so its retrieve row asks by that name (well_known.yaml).
+SGGS_NAMED_EN = "What is {name} in {version}? Reply with the exact text of that edition and nothing else."
+SGGS_NAMED_PA = "ਸ੍ਰੀ ਗੁਰੂ ਗ੍ਰੰਥ ਸਾਹਿਬ ਵਿਚੋਂ {name} ਦਾ ਪਾਠ ਦੱਸੋ। ਸਿਰਫ਼ ਉਸੇ ਅਡੀਸ਼ਨ ਦਾ ਪਾਠ ਲਿਖੋ।"
 SGGS_EDGE_WORDS = {"first": ("first", "ਪਹਿਲੀ"), "last": ("last", "ਆਖ਼ਰੀ")}
 _SGGS_VISHRAAM = re.compile(r"[;.,]")  # convert._SGGS_VISHRAAM_RE: Shabad OS marks every pankti's pauses
 
@@ -182,6 +185,17 @@ def edition_name(version: str, work: str | None = None) -> str:
     if encyclical and work:
         return f"the Vatican English text of the encyclical {work} ({encyclical[1]})"
     raise SystemExit(f"no prompt name for edition {version!r} of {work!r}: add one to _EDITION_DISPLAY")
+
+
+def asked_as(work: str, version: str) -> dict[str, tuple[str, str]]:
+    """``{citation: (English name, native name)}`` for the well-known passages asked for by name."""
+    import yaml
+
+    items = yaml.safe_load((REVIEW.parents[0] / "well_known.yaml").read_text(encoding="utf-8"))["items"]
+    return {
+        str(i["citation"]): (i["asked_as"], i["asked_as_native"])
+        for i in items if i["work"] == work and i["version"] == version and "asked_as" in i
+    }
 
 
 def famous_passages(work: str, version: str) -> list[Passage]:
@@ -366,9 +380,21 @@ def sikhism() -> list[dict]:
     )
     order = {p.citation: i for i, (p, *_rest) in enumerate(items)}
     name = edition_name(version)
+    named = asked_as("Sri Guru Granth Sahib", version)
+    if set(named) != {p.citation for p in famous}:
+        raise SystemExit(f"every SGGS familiarity passage needs asked_as in well_known.yaml: {sorted(named)}")
     taken: dict[tuple[str, str, str], set[str]] = {}  # (sample, condition, Ang) -> edges asked
     for row in rows:
         if row["task"] != "retrieve_quote":
+            continue
+        if row["sample"] == "familiarity":
+            # Famous by name: ask for the passage itself. Prompt, citation and expected text are its own.
+            english, native = named[row["citation"]]
+            if row["condition"] == "ask_english":
+                tmpl, fields, suffix = SGGS_NAMED_EN, {"name": english}, f"\nAnswer in the language of {name}."
+            else:
+                tmpl, fields, suffix = SGGS_NAMED_PA, {"name": native}, ""
+            row.update(prompt_for(tmpl, {**fields, "version": name, "text": row["expected"]["text"]}, suffix))
             continue
         ang = sggs_ang(row["citation"])
         prefer = "first" if order[row["citation"]] % 2 == 0 else "last"

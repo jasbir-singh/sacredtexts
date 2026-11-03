@@ -120,6 +120,7 @@ or raag the model adds beside the Ang is ignored; a second Ang is a hedge.
 `retrieve_quote` asks for the first or last pankti of the Ang, never a
 heading or a multi-tuk record, for the same reason. An Ang asks at most two such questions, so
 a passage drawn from an Ang that already has two gets no retrieve row.
+A familiarity passage is asked for by its name (the Mool Mantar).
 
 Within each sample, half of the `verify_source` questions quote a real passage
 from a different work and expect `no`. The donor is the same language as the

@@ -210,6 +210,7 @@ def sikhism() -> tuple[str, str]:
     rows, size = passage_lines(load_questions("sikhism", "native"))
     rows.append("- cite_passage asks for and expects the Ang only: line numbering within an Ang is not standardised (#135).")
     rows.append("- retrieve_quote asks for the first or last pankti of the passage's Ang, for the same reason.")
+    rows.append("- A familiarity passage's retrieve_quote asks for it by name (`asked_as` in well_known.yaml), e.g. the Mool Mantar.")
     native = {
         "retrieve_quote": "ਸ੍ਰੀ ਗੁਰੂ ਗ੍ਰੰਥ ਸਾਹਿਬ, ਸ਼ਬਦ ਓਐਸ (ਐਸ.ਜੀ.ਪੀ.ਸੀ. ਸ਼ਬਦਾਰਥ) ਦੇ {ang} ਦੀ {edge} ਪੰਕਤੀ ਦਾ ਪਾਠ ਦੱਸੋ। ਸਿਰਫ਼ ਉਸੇ ਅਡੀਸ਼ਨ ਦਾ ਪਾਠ ਲਿਖੋ।",
         "complete_unit": "ਸ੍ਰੀ ਗੁਰੂ ਗ੍ਰੰਥ ਸਾਹਿਬ, ਸ਼ਬਦ ਓਐਸ (ਐਸ.ਜੀ.ਪੀ.ਸੀ. ਸ਼ਬਦਾਰਥ) ਵਿਚੋਂ ਇਹ ਟੋਟਾ ਪੂਰਾ ਕਰੋ: \"{head}\" ਸਿਰਫ਼ ਬਾਕੀ ਸ਼ਬਦ ਲਿਖੋ।",
